@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NBS IPS QR Generator</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f4f5f7; padding: 20px; }
+    .container { max-width: 500px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    h2 { margin-top: 0; color: #1e293b; text-align: center; }
+    label { display: block; margin-top: 12px; font-weight: 600; font-size: 14px; color: #334155; }
+    input, textarea { width: 100%; padding: 10px; margin-top: 4px; border: 1px solid #cbd5e1; border-radius: 6px; box-sizing: border-box; font-size: 14px; }
+    button { width: 100%; margin-top: 18px; padding: 12px; background: #0284c7; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; }
+    button:hover { background: #0369a1; }
+    button.secondary { background: #64748b; }
+    button.secondary:hover { background: #475569; }
+    #qrcode { margin-top: 20px; text-align: center; }
+    #rawString { font-family: monospace; font-size: 11px; word-break: break-all; margin-top: 10px; color: #64748b; background: #f8fafc; padding: 8px; border-radius: 4px; }
+    /* убрать стрелки-спиннеры у числового поля суммы */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+    .warn { color: #dc2626; font-size: 11px; line-height: 1.4; margin-top: 6px; text-align: center; }
+    .lblrow { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+    .opt { color: #16a34a; font-size: 11px; font-weight: 500; white-space: nowrap; }
+  </style>
+  <!-- Локально вшитая библиотека генерации QR (без внешнего CDN) -->
+  <script src="qrcode.min.js"></script>
+</head>
+<body>
+
+<div class="container">
+  <h2>NBS IPS QR Generator</h2>
+
+  <label>Nalepi tekst naloga (auto-popuna):</label>
+  <textarea id="pasteBox" rows="2" placeholder="Nalepi tekst iz prekršajnog naloga — račun, poziv na broj, model i iznos će se popuniti automatski"></textarea>
+  <button class="secondary" onclick="parseTextToFields(document.getElementById('pasteBox').value)">Popuni iz teksta</button>
+  <div class="warn">⚠ Proverite ispravnost svih unetih podataka / polja pre plaćanja putem QR koda!</div>
+
+  <label class="lblrow"><span>Ime i prezime / Naziv platioca:</span><span class="opt">nije obavezno · popunjava banka</span></label>
+  <input type="text" id="payerName" placeholder="PETAR PETROVIĆ">
+
+  <label class="lblrow"><span>Adresa platioca:</span><span class="opt">nije obavezno · popunjava banka</span></label>
+  <input type="text" id="payerAddress" placeholder="TRG SLOBODE 1, NOVI SAD">
+
+  <label>Naziv primaoca:</label>
+  <input type="text" id="recipientName" placeholder="BUDŽET REPUBLIKE SRBIJE">
+
+  <label>Račun primaoca (формат 840-xxx-xx):</label>
+  <input type="text" id="account" placeholder="840-743324843-18">
+
+  <label>Iznos (RSD):</label>
+  <input type="number" step="0.01" id="amount" placeholder="5000.00">
+
+  <label>Šifra plaćanja:</label>
+  <input type="text" id="code" value="253" placeholder="253">
+
+  <label>Svrha plaćanja:</label>
+  <textarea id="purpose" rows="2" placeholder="UPLATA PO PREKRŠAJNOM NALOGU BROJ 123456789012"></textarea>
+
+  <label>Model (RO):</label>
+  <input type="text" id="model" placeholder="97">
+
+  <label>Poziv na broj:</label>
+  <input type="text" id="reference" placeholder="12345678901234567">
+
+  <button onclick="generateNbsQr()">Generiši QR Kôd</button>
+
+  <div id="qrcode"></div>
+  <div id="rawString"></div>
+</div>
+
+<script>
+  // Функция приведения сербского счета к 18 цифрам
+  function normalizeAccount(accStr) {
+    const clean = accStr.replace(/\D/g, ''); // убираем дефисы и пробелы
+    if (clean.length < 5) return clean;
+
+    const bank = clean.substring(0, 3);
+    const control = clean.substring(clean.length - 2);
+    const mainPart = clean.substring(3, clean.length - 2);
+
+    // Заполняем основную часть нулями слева до 13 символов
+    const paddedMain = mainPart.padStart(13, '0');
+    return `${bank}${paddedMain}${control}`;
+  }
+
+  // Функция форматирования суммы (например, 5000 -> RSD5000,00)
+  function formatAmount(amt) {
+    const num = parseFloat(amt) || 0;
+    return `RSD${num.toFixed(2).replace('.', ',')}`;
+  }
+
+  function generateNbsQr() {
+    const payerName = toAsciiLatin(document.getElementById('payerName').value.trim());
+    const payerAddr = toAsciiLatin(document.getElementById('payerAddress').value.trim());
+    const recipient = toAsciiLatin(document.getElementById('recipientName').value.trim());
+    const accountRaw = document.getElementById('account').value.trim();
+    const amountRaw = document.getElementById('amount').value;
+    const code = document.getElementById('code').value.trim();
+    const purpose = toAsciiLatin(document.getElementById('purpose').value.trim());
+    const model = document.getElementById('model').value.trim();
+    const reference = document.getElementById('reference').value.trim();
+
+    const normalizedAcc = normalizeAccount(accountRaw);
+
+    // не показывать QR пока нет данных (нет счёта) — до вставки/заполнения
+    if (!normalizedAcc || normalizedAcc.length < 5) {
+      document.getElementById('qrcode').innerHTML = '';
+      document.getElementById('rawString').innerText = '';
+      return;
+    }
+
+    const formattedAmt = formatAmount(amountRaw);
+
+    // Поле P (Platilac): имя / улица / город на отдельных строках (LF)
+    const payerLines = [payerName];
+    if (payerAddr) {
+      const ci = payerAddr.lastIndexOf(',');
+      if (ci > -1) { payerLines.push(payerAddr.slice(0, ci).trim()); payerLines.push(payerAddr.slice(ci + 1).trim()); }
+      else payerLines.push(payerAddr);
+    }
+    const payerFull = payerLines.filter(Boolean).join('\n');
+
+    // Формирование строки строго по стандарту NBS IPS
+    let ipsParts = [
+      'K:PR',
+      'V:01',
+      'C:1',
+      `R:${normalizedAcc}`,
+      `N:${recipient}`,
+      `I:${formattedAmt}`
+    ];
+
+    if (payerFull) ipsParts.push(`P:${payerFull}`);
+    if (code) ipsParts.push(`SF:${code}`);
+    if (purpose) ipsParts.push(`S:${purpose}`);
+
+    if (model && reference) {
+      ipsParts.push(`RO:${model}${reference}`);
+    } else if (reference) {
+      ipsParts.push(`RO:${reference}`);
+    }
+
+    const ipsString = ipsParts.join('|');
+
+    // Очистка предыдущего QR
+    document.getElementById('qrcode').innerHTML = '';
+    document.getElementById('rawString').innerText = ipsString;
+
+    // Генерация QR (SVG, UTF-8 корректно — сербская диакритика)
+    qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+    var qr = qrcode(0, 'M');            // 0 = авто-размер, коррекция M
+    qr.addData(ipsString);
+    qr.make();
+    document.getElementById('qrcode').innerHTML =
+      qr.createSvgTag({ cellSize: 5, margin: 4, scalable: true });
+    var svg = document.querySelector('#qrcode svg');
+    if (svg) { svg.style.width = '220px'; svg.style.height = '220px'; }
+  }
+
+  // Транслитерация в ASCII-латиницу: кириллица + сербская диакритика -> ближайшие англ. буквы
+  function toAsciiLatin(s) {
+    if (!s) return '';
+    var map = {
+      'Č':'C','č':'c','Ć':'C','ć':'c','Š':'S','š':'s','Ž':'Z','ž':'z','Đ':'DJ','đ':'dj',
+      'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Ђ':'DJ','Е':'E','Ж':'Z','З':'Z','И':'I','Ј':'J','К':'K','Л':'L','Љ':'LJ','М':'M','Н':'N','Њ':'NJ','О':'O','П':'P','Р':'R','С':'S','Т':'T','Ћ':'C','У':'U','Ф':'F','Х':'H','Ц':'C','Ч':'C','Џ':'DZ','Ш':'S',
+      'а':'a','б':'b','в':'v','г':'g','д':'d','ђ':'dj','е':'e','ж':'z','з':'z','и':'i','ј':'j','к':'k','л':'l','љ':'lj','м':'m','н':'n','њ':'nj','о':'o','п':'p','р':'r','с':'s','т':'t','ћ':'c','у':'u','ф':'f','х':'h','ц':'c','ч':'c','џ':'dz','ш':'s',
+      'Ё':'E','ё':'e','Й':'J','й':'j','Ы':'Y','ы':'y','Э':'E','э':'e','Ю':'JU','ю':'ju','Я':'JA','я':'ja','Щ':'SC','щ':'sc','Ъ':'','ъ':'','Ь':'','ь':''
+    };
+    var out = '';
+    for (var i = 0; i < s.length; i++) { var ch = s[i]; out += (ch in map) ? map[ch] : ch; }
+    out = out.normalize('NFKD').replace(/[̀-ͯ]/g, '');
+    out = out.replace(/[^\x00-\x7F]/g, '');
+    return out;
+  }
+
+  // Сжатие назначения до короткой формы (короче строка → меньше данных в QR)
+  function shortenPurpose(p) {
+    const num = (p.match(/\d{6,}/) || [])[0] || '';
+    if (/(prekr[šs]aj|прекршај)/i.test(p) && /(nalog|налог)/i.test(p)) {
+      return ('УПЛАТ ПРЕКРШАЈ НАЛОГ ' + num).trim();
+    }
+    return p;
+  }
+
+  // Чинит "разрядку" букв из PDF: "БЕОГР АД" -> "БЕОГРАД", "ПЕТРОВИЋ А" -> "ПЕТРОВИЋА"
+  function fixSpacing(s) {
+    let p = s;
+    for (let k = 0; k < 3; k++) p = p.replace(/([А-ЯЁЂЈЉЊЋЏA-Z]{3,})\s+([А-ЯЁЂЈЉЊЋЏA-Z]{1,2})(?=\s|,|$)/g, '$1$2');
+    return p;
+  }
+
+  // Автопарсинг из вставленного текста (заполняет все поля и пересчитывает)
+  function parseTextToFields(text) {
+    if (!text || !text.trim()) return;
+    const accMatch = text.match(/\b\d{3}-\d+-\d{2}\b/);
+    const refMatch = text.match(/(?:позив(?:ом)? на број|poziv na broj)\s+([0-9]+)/i);
+    const modelMatch = text.match(/(?:model|модел)\w*\s*:?\s*([0-9]{2})/i);
+    const amountMatch = text.match(/(\d[\d.]*(?:,\d{1,2})?)\s*(?:динара|dinara|rsd)/i);
+    // svrha plaćanja: текст между "сврху плаћања:" и "на рачун"/"са позив"/концом (кириллица и латиница)
+    const purposeMatch =
+      text.match(/svrh[uaeo]\s+pla[ćc]anja\s*:?\s*([\s\S]+?)(?:\s+na\s+ra[čc]un|\s+sa\s+poziv|$)/i) ||
+      text.match(/сврх[уаео]\s+плаћања\s*:?\s*([\s\S]+?)(?:\s+на\s+рачун|\s+са\s+позив|$)/i);
+    // naziv primaoca: текст после "у корист:" до запятой / "у сврху" (кириллица и латиница)
+    const recipMatch =
+      text.match(/(?:u\s+korist|у\s+корист)\s*:?\s*([\s\S]+?)(?:\s*,|\s+u\s+svrh|\s+у\s+сврх|$)/i);
+    // имя плательщика: "лицу PETROVIC PETAR са пребивалиштем"
+    const nameMatch = text.match(/лицу\s+(.+?)\s+са\s+пребивалиш/i);
+    // адрес: блок между "у месту:" и "власнику" -> улица + место
+    const addrBlock = text.match(/у\s+месту:?\s*([\s\S]+?)\s+власнику/i);
+
+    if (recipMatch) document.getElementById('recipientName').value = recipMatch[1].replace(/\s+/g, ' ').trim();
+    if (accMatch) document.getElementById('account').value = accMatch[0];
+    if (refMatch) document.getElementById('reference').value = refMatch[1];
+    if (modelMatch) document.getElementById('model').value = modelMatch[1];
+    if (purposeMatch) document.getElementById('purpose').value = shortenPurpose(purposeMatch[1].replace(/\s+/g, ' ').trim());
+    if (nameMatch) {
+      let nm = fixSpacing(nameMatch[1].replace(/\s+/g, ' ').trim());
+      const np = nm.split(' ');
+      if (np.length === 2) nm = np[1] + ' ' + np[0]; // в позиве PREZIME IME -> в оплате IME PREZIME
+      document.getElementById('payerName').value = nm;
+    }
+    if (addrBlock) {
+      const blk = fixSpacing(addrBlock[1].replace(/\s+/g, ' ').trim());
+      const mesto = (blk.match(/^(.+?)\s+општина/i) || [])[1] || '';
+      let street = (blk.match(/,\s*(.+)$/) || [])[1] || '';
+      street = street.replace(/\b0+(\d)/g, '$1'); // убрать ведущие нули в номере дома: 044 -> 44
+      const address = (street ? street + ', ' : '') + mesto;
+      if (address.trim()) document.getElementById('payerAddress').value = address.trim();
+    }
+    // сумма + "плати половину" -> делим на 2
+    if (amountMatch) {
+      let amt = parseFloat(amountMatch[1].replace(/\./g, '').replace(',', '.'));
+      if (!isNaN(amt)) {
+        if (/половин|polovin/i.test(text)) amt = amt / 2;
+        document.getElementById('amount').value = amt;
+      }
+    }
+    generateNbsQr();
+  }
+
+  // Автозаполнение: сразу после вставки и когда фокус ушёл из поля вставки
+  window.onload = function () {
+    var pb = document.getElementById('pasteBox');
+    // вставка (значение появляется чуть позже события paste — читаем через тик)
+    pb.addEventListener('paste', function () { setTimeout(function () { parseTextToFields(pb.value); }, 0); });
+    // фокус ушёл из поля вставки
+    pb.addEventListener('blur', function () { parseTextToFields(pb.value); });
+    // пересчёт при ручном изменении любого поля
+    document.querySelectorAll('input, #purpose').forEach(function (el) {
+      el.addEventListener('change', generateNbsQr);
+    });
+    generateNbsQr(); // с гардом: при пустом счёте QR не покажется
+  };
+</script>
+
+</body>
+</html>
