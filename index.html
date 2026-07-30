@@ -23,14 +23,29 @@
     .warn { color: #dc2626; font-size: 11px; line-height: 1.4; margin-top: 6px; text-align: center; }
     .lblrow { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
     .opt { color: #16a34a; font-size: 11px; font-weight: 500; white-space: nowrap; }
+    .dropzone { border: 2px dashed #94a3b8; border-radius: 8px; padding: 22px 12px; text-align: center; color: #475569; cursor: pointer; background: #f8fafc; transition: background .15s, border-color .15s; }
+    .dropzone.drag { background: #e0f2fe; border-color: #0284c7; }
+    .dropzone .dzsub { display: block; font-size: 12px; color: #94a3b8; margin-top: 3px; }
+    .pdfstatus { font-size: 12px; text-align: center; margin-top: 6px; min-height: 14px; }
+    .divider { text-align: center; color: #94a3b8; font-size: 12px; margin: 14px 0 4px; }
   </style>
-  <!-- Локально вшитая библиотека генерации QR (без внешнего CDN) -->
+  <!-- Локальные библиотеки (без внешнего CDN): генерация QR + чтение PDF -->
   <script src="qrcode.min.js"></script>
+  <script src="pdf.min.js"></script>
 </head>
 <body>
 
 <div class="container">
   <h2>NBS IPS QR Generator</h2>
+
+  <div id="dropzone" class="dropzone">
+    <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
+    📄 Prevucite PDF nalog ovde
+    <span class="dzsub">ili kliknite da izaberete fajl</span>
+  </div>
+  <div id="pdfStatus" class="pdfstatus"></div>
+
+  <div class="divider">— ili nalepi tekst —</div>
 
   <label>Nalepi tekst naloga (auto-popuna):</label>
   <textarea id="pasteBox" rows="2" placeholder="Nalepi tekst iz prekršajnog naloga — račun, poziv na broj, model i iznos će se popuniti automatski"></textarea>
@@ -240,8 +255,53 @@
     generateNbsQr();
   }
 
+  // Чтение PDF в браузере (pdf.js) -> текст -> парсер. Файл никуда не отправляется.
+  async function handlePdf(file) {
+    var status = document.getElementById('pdfStatus');
+    var nm = (file && file.name ? file.name : '').toLowerCase();
+    if (!file || (file.type !== 'application/pdf' && !nm.endsWith('.pdf'))) {
+      status.style.color = '#dc2626'; status.textContent = 'Molimo izaberite PDF fajl.'; return;
+    }
+    if (!window.pdfjsLib) {
+      status.style.color = '#dc2626'; status.textContent = 'PDF čitač nije učitan.'; return;
+    }
+    status.style.color = '#64748b'; status.textContent = 'Čitam PDF…';
+    try {
+      var buf = await file.arrayBuffer();
+      var pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
+      var text = '';
+      for (var p = 1; p <= pdf.numPages; p++) {
+        var page = await pdf.getPage(p);
+        var content = await page.getTextContent();
+        text += content.items.map(function (it) { return it.str; }).join(' ') + '\n';
+      }
+      document.getElementById('pasteBox').value = text;
+      parseTextToFields(text);
+      status.style.color = '#16a34a'; status.textContent = '✓ Učitano: ' + file.name;
+    } catch (e) {
+      status.style.color = '#dc2626'; status.textContent = 'Greška pri čitanju PDF-a.';
+    }
+  }
+
   // Автозаполнение: сразу после вставки и когда фокус ушёл из поля вставки
   window.onload = function () {
+    if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
+    // зона загрузки PDF: клик + drag-and-drop
+    var dz = document.getElementById('dropzone');
+    var fi = document.getElementById('pdfFile');
+    dz.addEventListener('click', function () { fi.click(); });
+    fi.addEventListener('change', function () { if (fi.files[0]) handlePdf(fi.files[0]); });
+    ['dragover', 'dragenter'].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.add('drag'); });
+    });
+    ['dragleave', 'dragend'].forEach(function (ev) {
+      dz.addEventListener(ev, function (e) { e.preventDefault(); dz.classList.remove('drag'); });
+    });
+    dz.addEventListener('drop', function (e) {
+      e.preventDefault(); dz.classList.remove('drag');
+      if (e.dataTransfer.files[0]) handlePdf(e.dataTransfer.files[0]);
+    });
+
     var pb = document.getElementById('pasteBox');
     // вставка (значение появляется чуть позже события paste — читаем через тик)
     pb.addEventListener('paste', function () { setTimeout(function () { parseTextToFields(pb.value); }, 0); });

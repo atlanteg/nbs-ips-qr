@@ -13,7 +13,10 @@ Everything runs **client-side** — no backend, no data ever leaves the browser.
 
 ## Features
 
-- **One-file app.** Open `index.html` in any browser. No build step, no server, no network calls.
+- **Static app.** Open `index.html` in any browser. No build step, no server, no network calls.
+- **Upload a PDF.** Drop a PDF payment order onto the drop zone (or click to choose a file).
+  The text is extracted **in the browser** with [pdf.js](https://mozilla.github.io/pdf.js/)
+  and parsed automatically — nothing is uploaded anywhere.
 - **Auto-parse from pasted text.** Paste a fine notice; name, address, recipient,
   account, amount, purpose, model and reference are filled automatically
   (on paste or when focus leaves the paste box).
@@ -105,9 +108,10 @@ Files:
 
 - `index.html` — the app (vanilla HTML/CSS/JS)
 - `qrcode.min.js` — the QR encoder ([qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator))
+- `pdf.min.js` + `pdf.worker.min.js` — [pdf.js](https://github.com/mozilla/pdf.js) for in-browser PDF text extraction
 
-To make a single self-contained file, inline `qrcode.min.js` into `index.html`
-inside a `<script>` tag (replace the `<script src="qrcode.min.js"></script>` line).
+All files must be served from the same directory so the relative `<script src>`
+and the PDF worker (`pdf.worker.min.js`) resolve.
 
 ---
 
@@ -135,6 +139,8 @@ house-number leading zeros are stripped (`044` → `44`).
 - Vanilla HTML/CSS/JavaScript — no framework, no build.
 - QR encoding: [qrcode-generator](https://github.com/kazuhikoarase/qrcode-generator)
   (MIT), rendered as inline **SVG** (crisp at any size, no canvas quirks).
+- PDF text extraction: [pdf.js](https://github.com/mozilla/pdf.js) (Apache-2.0),
+  entirely client-side — the PDF never leaves the browser.
 - UTF-8 byte encoding enabled in the QR encoder for correct multi-byte handling.
 
 ---
