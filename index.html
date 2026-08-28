@@ -374,6 +374,13 @@
     const nameMatch = text.match(/(?:Пореск(?:ом|и)\s+обвезник(?:у|)|Poreskom\s+obvezniku)\s*:?\s*(.{1,120}?)\s*(?:ЈМБГ|JMBG|ПИБ|PIB|Радња|Radnja)/i);
     // pdf.js склеивает страницу в одну строку — терминатор только по явным якорям, без $
     const addrMatch = text.match(/(?:Улица\s+и\s+број|Ulica\s+i\s+broj)\s*:?\s*(.{1,200}?)\s*(?:I\s+Према|I\s+Prema|Радња|Radnja|Делатност|Delatnost|ЈМБГ|JMBG)/i);
+    // Самоуправа-получатель из шапки: "ГРАДСКА УПРАВА ГРАДА БЕОГРАДА" (група 1)
+    // либо "ОПШТИНСКА УПРАВА ОПШТИНЕ ЗАГУБИЦА" (група 2) — уже в родительном падеже.
+    const recipMatch = text.match(
+      /(?:ГРАДСКА\s+УПРАВА\s+ГРАДА|GRADSKA\s+UPRAVA\s+GRADA)\s+([^\s]+(?:\s+[^\s]+)?)(?=\s+(?:СЕКРЕТАРИЈАТ|SEKRETARIJAT|ОДЕЉЕЊЕ|ODELJENJE|Сектор|Sektor))/i
+    ) || text.match(
+      /(?:ОПШТИНСКА\s+УПРАВА\s+ОПШТИНЕ|OPŠTINSKA\s+UPRAVA\s+OPŠTINE)\s+()([^\s]+(?:\s+[^\s]+)?)(?=\s+(?:ОДЕЉЕЊЕ|ODELJENJE|Сектор|Sektor|Служба|Sluzba))/i
+    );
 
     if (accMatch) document.getElementById('account').value = accMatch[0];
     if (roMatch) {
@@ -397,7 +404,16 @@
       }
       document.getElementById('payerAddress').value = a;
     }
-    document.getElementById('recipientName').value = 'GRAD BEOGRAD';
+    // Прималац. Рачун 840-714562843-56 един для ВСЕЙ Сербии — деньги попадают в
+    // бюджет той самоуправы, которая зашита в позив на број. Поэтому получателя
+    // берём из шапки самого документа, а не хардкодим Београд.
+    if (recipMatch) {
+      document.getElementById('recipientName').value = recipMatch[1]
+        ? 'БУЏЕТ ГРАДА ' + recipMatch[1].replace(/\s+/g, ' ').trim()
+        : 'БУЏЕТ ОПШТИНЕ ' + recipMatch[2].replace(/\s+/g, ' ').trim();
+    }
+    // 253 = уплата јавних прихода, безготовински. (153 — тот же приход, но
+    // наличными на шалтеру; оплата по QR из банковского приложения — всегда 253.)
     document.getElementById('code').value = '253';
     document.getElementById('purpose').value = 'NAKNADA ZA ZASTITU ZIVOTNE SREDINE';
     generateNbsQr();

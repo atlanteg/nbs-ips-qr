@@ -202,9 +202,23 @@ Tolerant regexes handling both **Cyrillic and Latin** Serbian text:
 - **Payer name** — after *"Пореском обвезнику:"*, up to *"ЈМБГ"*
 - **Payer address** — after *"Улица и број:"*, reordered from
   `city-municipality, municipality, street` to `street, city`
-- **Recipient / purpose / payment code** — fixed values for this document type
+- **Recipient** — derived from the letterhead: *"ГРАДСКА УПРАВА ГРАДА **Београда**"*
+  → `БУЏЕТ ГРАДА БЕОГРАДА`, or *"ОПШТИНСКА УПРАВА ОПШТИНЕ **X**"* → `БУЏЕТ ОПШТИНЕ X`
+- **Purpose / payment code** — fixed values for this document type
 
 There is no half-amount rule here: the total already includes accrued interest.
+
+**Why the recipient is not hard-coded.** Account `840-714562843-56` is the single
+nationwide public-revenue account for this fee — every city and municipality in
+Serbia uses the same number. The money reaches the right budget through the
+*poziv na broj*, which encodes the local self-government and the taxpayer's PIB.
+Hard-coding one city would put a misleading recipient name on everyone else's
+QR code, so the recipient is read from the issuing authority in the letterhead.
+
+**Why payment code 253.** For public revenue, `153` is a cash payment made over
+the counter and `253` is a cashless transfer. A QR code scanned in a banking app
+is always a transfer, so `253` is correct regardless of whether the payer is an
+individual or a legal entity.
 
 ---
 
