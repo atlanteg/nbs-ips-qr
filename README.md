@@ -112,7 +112,7 @@ The tags, in order:
 | `V`  | Version                        | Always `01`                                                  |
 | `C`  | Character set                  | `1` = UTF-8                                                  |
 | `R`  | Recipient account              | 18 digits (see normalization)                                |
-| `N`  | Recipient name                 | e.g. `BUDZET REPUBLIKE SRBIJE`                               |
+| `N`  | Recipient name + seat          | Name / seat, one per line (LF)                               |
 | `I`  | Amount                         | `RSD` + amount with **comma** decimal, 2 places — `RSD5000,00` |
 | `P`  | Payer (optional)               | Name / address / city, one per line (LF)                    |
 | `SF` | Payment code (*šifra*)         | e.g. `253` for fines                                         |
@@ -160,7 +160,8 @@ Both fields are shown in the form and can be edited before generating.
 ### Example payload
 
 ```
-K:PR|V:01|C:1|R:840000074332484318|N:BUDZET REPUBLIKE SRBIJE|I:RSD5000,00|P:PETAR PETROVIC
+K:PR|V:01|C:1|R:840000074332484318|N:BUDZET REPUBLIKE SRBIJE
+BEOGRAD|I:RSD5000,00|P:PETAR PETROVIC
 KNEZA MILOSA 12
 BEOGRAD|SF:253|S:PREKRSAJNI NALOG 123456789012|RO:97123456789012345
 ```
