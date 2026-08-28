@@ -28,6 +28,12 @@
     .dropzone .dzsub { display: block; font-size: 12px; color: #94a3b8; margin-top: 3px; }
     .pdfstatus { font-size: 12px; text-align: center; margin-top: 6px; min-height: 14px; }
     .divider { text-align: center; color: #94a3b8; font-size: 12px; margin: 14px 0 4px; }
+    .mode-tabs { display: flex; gap: 6px; margin-bottom: 18px; }
+    .tab { flex: 1; padding: 9px 6px; border: 2px solid #cbd5e1; background: #f8fafc; color: #475569; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; }
+    .tab:hover { border-color: #94a3b8; }
+    .tab.active { border-color: #0284c7; background: #e0f2fe; color: #0284c7; }
+    .topbar { display: flex; justify-content: flex-end; margin-bottom: 4px; }
+    .langsel { width: auto; margin: 0; padding: 5px 8px; font-size: 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; color: #475569; cursor: pointer; }
   </style>
   <!-- Локальные библиотеки (без внешнего CDN): генерация QR + чтение PDF -->
   <script src="qrcode.min.js"></script>
@@ -36,56 +42,194 @@
 <body>
 
 <div class="container">
+  <div class="topbar">
+    <select id="langSel" class="langsel" onchange="setLang(this.value)">
+      <option value="sr">Srpski</option>
+      <option value="ru">Русский</option>
+      <option value="en">English</option>
+    </select>
+  </div>
+
   <h2>NBS IPS QR Generator</h2>
+
+  <div class="mode-tabs">
+    <button type="button" class="tab active" id="tabPrekrsaj" onclick="setMode('prekrsaj')" data-i18n="tabPrekrsaj"></button>
+    <button type="button" class="tab" id="tabEkologija" onclick="setMode('ekologija')" data-i18n="tabEkologija"></button>
+  </div>
 
   <div id="dropzone" class="dropzone">
     <input type="file" id="pdfFile" accept="application/pdf,.pdf" hidden>
-    📄 Prevucite PDF nalog ovde
-    <span class="dzsub">ili kliknite da izaberete fajl</span>
+    <span id="dzTitle"></span>
+    <span class="dzsub" data-i18n="dzSub"></span>
   </div>
   <div id="pdfStatus" class="pdfstatus"></div>
 
-  <div class="divider">— ili nalepi tekst —</div>
+  <div class="divider" data-i18n="divider"></div>
 
-  <label>Nalepi tekst naloga (auto-popuna):</label>
-  <textarea id="pasteBox" rows="2" placeholder="Nalepi tekst iz prekršajnog naloga — račun, poziv na broj, model i iznos će se popuniti automatski"></textarea>
-  <button class="secondary" onclick="parseTextToFields(document.getElementById('pasteBox').value)">Popuni iz teksta</button>
-  <div class="warn">⚠ Proverite ispravnost svih unetih podataka / polja pre plaćanja putem QR koda!</div>
+  <label data-i18n="lblPaste"></label>
+  <textarea id="pasteBox" rows="2" data-i18n-ph="phPaste"></textarea>
+  <button class="secondary" onclick="parseTextToFields(document.getElementById('pasteBox').value)" data-i18n="btnFill"></button>
+  <div class="warn" data-i18n="warn"></div>
 
-  <label class="lblrow"><span>Ime i prezime / Naziv platioca:</span><span class="opt">nije obavezno · popunjava banka</span></label>
+  <label class="lblrow"><span data-i18n="lblPayerName"></span><span class="opt" data-i18n="optBank"></span></label>
   <input type="text" id="payerName" placeholder="PETAR PETROVIĆ">
 
-  <label class="lblrow"><span>Adresa platioca:</span><span class="opt">nije obavezno · popunjava banka</span></label>
+  <label class="lblrow"><span data-i18n="lblPayerAddr"></span><span class="opt" data-i18n="optBank"></span></label>
   <input type="text" id="payerAddress" placeholder="TRG SLOBODE 1, NOVI SAD">
 
-  <label>Naziv primaoca:</label>
+  <label data-i18n="lblRecipient"></label>
   <input type="text" id="recipientName" placeholder="BUDŽET REPUBLIKE SRBIJE">
 
-  <label>Račun primaoca (формат 840-xxx-xx):</label>
+  <label data-i18n="lblAccount"></label>
   <input type="text" id="account" placeholder="840-743324843-18">
 
-  <label>Iznos (RSD):</label>
+  <label data-i18n="lblAmount"></label>
   <input type="number" step="0.01" id="amount" placeholder="5000.00">
 
-  <label>Šifra plaćanja:</label>
+  <label data-i18n="lblCode"></label>
   <input type="text" id="code" value="253" placeholder="253">
 
-  <label>Svrha plaćanja:</label>
+  <label data-i18n="lblPurpose"></label>
   <textarea id="purpose" rows="2" placeholder="UPLATA PO PREKRŠAJNOM NALOGU BROJ 123456789012"></textarea>
 
-  <label>Model (RO):</label>
+  <label data-i18n="lblModel"></label>
   <input type="text" id="model" placeholder="97">
 
-  <label>Poziv na broj:</label>
+  <label data-i18n="lblReference"></label>
   <input type="text" id="reference" placeholder="12345678901234567">
 
-  <button onclick="generateNbsQr()">Generiši QR Kôd</button>
+  <button onclick="generateNbsQr()" data-i18n="btnGenerate"></button>
 
   <div id="qrcode"></div>
   <div id="rawString"></div>
 </div>
 
 <script>
+  // ── Переводы интерфейса ───────────────────────────────────────────────
+  var I18N = {
+    sr: {
+      tabPrekrsaj: 'Prekršajni nalog',
+      tabEkologija: 'Ekološka naknada',
+      dzPrekrsaj: '📄 Prevucite PDF nalog ovde',
+      dzEkologija: '📄 Prevucite PDF obaveštenja o stanju duga',
+      dzSub: 'ili kliknite da izaberete fajl',
+      divider: '— ili nalepi tekst —',
+      lblPaste: 'Nalepi tekst naloga (auto-popuna):',
+      phPaste: 'Nalepi tekst iz naloga — račun, poziv na broj, model i iznos će se popuniti automatski',
+      btnFill: 'Popuni iz teksta',
+      warn: '⚠ Proverite ispravnost svih unetih podataka / polja pre plaćanja putem QR koda!',
+      lblPayerName: 'Ime i prezime / Naziv platioca:',
+      lblPayerAddr: 'Adresa platioca:',
+      optBank: 'nije obavezno · popunjava banka',
+      lblRecipient: 'Naziv primaoca:',
+      lblAccount: 'Račun primaoca (format 840-xxx-xx):',
+      lblAmount: 'Iznos (RSD):',
+      lblCode: 'Šifra plaćanja:',
+      lblPurpose: 'Svrha plaćanja:',
+      lblModel: 'Model (RO):',
+      lblReference: 'Poziv na broj:',
+      btnGenerate: 'Generiši QR Kôd',
+      pdfNotPdf: 'Molimo izaberite PDF fajl.',
+      pdfNoLib: 'PDF čitač nije učitan.',
+      pdfReading: 'Čitam PDF…',
+      pdfLoaded: '✓ Učitano: ',
+      pdfError: 'Greška pri čitanju PDF-a.'
+    },
+    ru: {
+      tabPrekrsaj: 'Штраф (прекршај)',
+      tabEkologija: 'Эконалог',
+      dzPrekrsaj: '📄 Перетащите PDF штрафа сюда',
+      dzEkologija: '📄 Перетащите PDF уведомления о задолженности',
+      dzSub: 'или нажмите, чтобы выбрать файл',
+      divider: '— или вставьте текст —',
+      lblPaste: 'Вставьте текст документа (автозаполнение):',
+      phPaste: 'Вставьте текст документа — счёт, позив на број, модель и сумма заполнятся автоматически',
+      btnFill: 'Заполнить из текста',
+      warn: '⚠ Проверьте правильность всех введённых данных перед оплатой по QR-коду!',
+      lblPayerName: 'Имя и фамилия / название плательщика:',
+      lblPayerAddr: 'Адрес плательщика:',
+      optBank: 'не обязательно · заполнит банк',
+      lblRecipient: 'Название получателя:',
+      lblAccount: 'Счёт получателя (формат 840-xxx-xx):',
+      lblAmount: 'Сумма (RSD):',
+      lblCode: 'Код платежа:',
+      lblPurpose: 'Назначение платежа:',
+      lblModel: 'Модель (RO):',
+      lblReference: 'Позив на број:',
+      btnGenerate: 'Сгенерировать QR-код',
+      pdfNotPdf: 'Пожалуйста, выберите PDF-файл.',
+      pdfNoLib: 'Модуль чтения PDF не загружен.',
+      pdfReading: 'Читаю PDF…',
+      pdfLoaded: '✓ Загружено: ',
+      pdfError: 'Ошибка при чтении PDF.'
+    },
+    en: {
+      tabPrekrsaj: 'Traffic fine',
+      tabEkologija: 'Eco fee',
+      dzPrekrsaj: '📄 Drop the fine PDF here',
+      dzEkologija: '📄 Drop the debt notice PDF here',
+      dzSub: 'or click to choose a file',
+      divider: '— or paste text —',
+      lblPaste: 'Paste document text (auto-fill):',
+      phPaste: 'Paste the document text — account, reference number, model and amount will be filled automatically',
+      btnFill: 'Fill from text',
+      warn: '⚠ Verify all entered data before paying via the QR code!',
+      lblPayerName: 'Payer name:',
+      lblPayerAddr: 'Payer address:',
+      optBank: 'optional · filled by the bank',
+      lblRecipient: 'Recipient name:',
+      lblAccount: 'Recipient account (format 840-xxx-xx):',
+      lblAmount: 'Amount (RSD):',
+      lblCode: 'Payment code:',
+      lblPurpose: 'Payment purpose:',
+      lblModel: 'Model (RO):',
+      lblReference: 'Reference number:',
+      btnGenerate: 'Generate QR code',
+      pdfNotPdf: 'Please choose a PDF file.',
+      pdfNoLib: 'PDF reader not loaded.',
+      pdfReading: 'Reading PDF…',
+      pdfLoaded: '✓ Loaded: ',
+      pdfError: 'Failed to read the PDF.'
+    }
+  };
+
+  var currentLang = 'sr';
+  function t(key) { return (I18N[currentLang] && I18N[currentLang][key]) || I18N.sr[key] || ''; }
+
+  // Выбор языка: сохранённый выбор пользователя > язык браузера > сербский
+  function detectLang() {
+    try {
+      var saved = localStorage.getItem('qrLang');
+      if (saved && I18N[saved]) return saved;
+    } catch (e) {}
+    var prefs = (navigator.languages && navigator.languages.length)
+      ? navigator.languages : [navigator.language || ''];
+    for (var i = 0; i < prefs.length; i++) {
+      var code = String(prefs[i]).toLowerCase().split('-')[0];
+      if (code === 'sr' || code === 'hr' || code === 'bs' || code === 'me') return 'sr';
+      if (code === 'ru' || code === 'uk' || code === 'be') return 'ru';
+      if (code === 'en') return 'en';
+    }
+    return 'sr';
+  }
+
+  function setLang(lang) {
+    if (!I18N[lang]) lang = 'sr';
+    currentLang = lang;
+    try { localStorage.setItem('qrLang', lang); } catch (e) {}
+    document.documentElement.lang = lang;
+    document.getElementById('langSel').value = lang;
+    document.querySelectorAll('[data-i18n]').forEach(function (el) {
+      el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach(function (el) {
+      el.placeholder = t(el.getAttribute('data-i18n-ph'));
+    });
+    // заголовок зоны загрузки зависит и от режима
+    document.getElementById('dzTitle').textContent =
+      t(currentMode === 'ekologija' ? 'dzEkologija' : 'dzPrekrsaj');
+  }
+
   // Функция приведения сербского счета к 18 цифрам
   function normalizeAccount(accStr) {
     const clean = accStr.replace(/\D/g, ''); // убираем дефисы и пробелы
@@ -206,9 +350,63 @@
     return p;
   }
 
+  // Режим документа: 'prekrsaj' (штраф за скорость) или 'ekologija' (эконалог)
+  var currentMode = 'prekrsaj';
+
+  function setMode(mode) {
+    currentMode = mode;
+    document.getElementById('tabPrekrsaj').classList.toggle('active', mode === 'prekrsaj');
+    document.getElementById('tabEkologija').classList.toggle('active', mode === 'ekologija');
+    document.getElementById('dzTitle').textContent =
+      t(mode === 'ekologija' ? 'dzEkologija' : 'dzPrekrsaj');
+    var pb = document.getElementById('pasteBox');
+    if (pb.value.trim()) parseTextToFields(pb.value);
+  }
+
+  // Парсер «Обавештење о стању дуга» — Накнада за заштиту и унапређивање животне средине
+  function parseEkologija(text) {
+    const accMatch = text.match(/\b840-\d+-\d{2}\b/);
+    // Позив на број одобрења: "97 85012345678901" (модел + позив)
+    const roMatch = text.match(/\b(97)\s+(\d{10,20})\b/);
+    // Сумма: "у укупном износу од 921.69 динара"
+    const amountMatch = text.match(/у\s+укупном\s+износу\s+од\s+([\d.,]+)\s*динара/i)
+                     || text.match(/u\s+ukupnom\s+iznosu\s+od\s+([\d.,]+)\s*dinara/i);
+    const nameMatch = text.match(/(?:Пореск(?:ом|и)\s+обвезник(?:у|)|Poreskom\s+obvezniku)\s*:?\s*(.{1,120}?)\s*(?:ЈМБГ|JMBG|ПИБ|PIB|Радња|Radnja)/i);
+    // pdf.js склеивает страницу в одну строку — терминатор только по явным якорям, без $
+    const addrMatch = text.match(/(?:Улица\s+и\s+број|Ulica\s+i\s+broj)\s*:?\s*(.{1,200}?)\s*(?:I\s+Према|I\s+Prema|Радња|Radnja|Делатност|Delatnost|ЈМБГ|JMBG)/i);
+
+    if (accMatch) document.getElementById('account').value = accMatch[0];
+    if (roMatch) {
+      document.getElementById('model').value = roMatch[1];
+      document.getElementById('reference').value = roMatch[2];
+    }
+    if (amountMatch) {
+      // формат в этом документе — точка как десятичный разделитель: 921.69
+      let raw = amountMatch[1];
+      let amt = parseFloat(raw.replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'));
+      if (!isNaN(amt)) document.getElementById('amount').value = amt;
+    }
+    if (nameMatch) document.getElementById('payerName').value = fixSpacing(nameMatch[1].replace(/\s+/g, ' ').trim());
+    if (addrMatch) {
+      let a = fixSpacing(addrMatch[1].replace(/\s+/g, ' ').trim());
+      // "Београд-Стари Град, Стари Град, БУЛЕВАР ДЕСПОТА СТЕФАНА 15" -> "БУЛЕВАР ДЕСПОТА СТЕФАНА 15, БЕОГРАД"
+      const parts = a.split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      if (parts.length >= 2) {
+        const grad = parts[0].split('-')[0].trim();
+        a = parts[parts.length - 1] + ', ' + grad;
+      }
+      document.getElementById('payerAddress').value = a;
+    }
+    document.getElementById('recipientName').value = 'GRAD BEOGRAD';
+    document.getElementById('code').value = '253';
+    document.getElementById('purpose').value = 'NAKNADA ZA ZASTITU ZIVOTNE SREDINE';
+    generateNbsQr();
+  }
+
   // Автопарсинг из вставленного текста (заполняет все поля и пересчитывает)
   function parseTextToFields(text) {
     if (!text || !text.trim()) return;
+    if (currentMode === 'ekologija') return parseEkologija(text);
     const accMatch = text.match(/\b\d{3}-\d+-\d{2}\b/);
     const refMatch = text.match(/(?:позив(?:ом)? на број|poziv na broj)\s+([0-9]+)/i);
     const modelMatch = text.match(/(?:model|модел)\w*\s*:?\s*([0-9]{2})/i);
@@ -260,12 +458,12 @@
     var status = document.getElementById('pdfStatus');
     var nm = (file && file.name ? file.name : '').toLowerCase();
     if (!file || (file.type !== 'application/pdf' && !nm.endsWith('.pdf'))) {
-      status.style.color = '#dc2626'; status.textContent = 'Molimo izaberite PDF fajl.'; return;
+      status.style.color = '#dc2626'; status.textContent = t('pdfNotPdf'); return;
     }
     if (!window.pdfjsLib) {
-      status.style.color = '#dc2626'; status.textContent = 'PDF čitač nije učitan.'; return;
+      status.style.color = '#dc2626'; status.textContent = t('pdfNoLib'); return;
     }
-    status.style.color = '#64748b'; status.textContent = 'Čitam PDF…';
+    status.style.color = '#64748b'; status.textContent = t('pdfReading');
     try {
       var buf = await file.arrayBuffer();
       var pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buf) }).promise;
@@ -277,14 +475,15 @@
       }
       document.getElementById('pasteBox').value = text;
       parseTextToFields(text);
-      status.style.color = '#16a34a'; status.textContent = '✓ Učitano: ' + file.name;
+      status.style.color = '#16a34a'; status.textContent = t('pdfLoaded') + file.name;
     } catch (e) {
-      status.style.color = '#dc2626'; status.textContent = 'Greška pri čitanju PDF-a.';
+      status.style.color = '#dc2626'; status.textContent = t('pdfError');
     }
   }
 
   // Автозаполнение: сразу после вставки и когда фокус ушёл из поля вставки
   window.onload = function () {
+    setLang(detectLang()); // язык браузера при первом входе, дальше — сохранённый выбор
     if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'pdf.worker.min.js';
     // зона загрузки PDF: клик + drag-and-drop
     var dz = document.getElementById('dropzone');
