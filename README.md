@@ -17,7 +17,7 @@ The app parses two different official documents, chosen with the tabs at the top
 
 | Tab | Document | Typical source |
 |-----|----------|----------------|
-| **Prekršajni nalog** | Traffic-fine notice (*prekršajni nalog*) | Ministry of the Interior |
+| **Prekršajni nalog** | Speeding-fine notice (*prekršajni nalog*) | Ministry of the Interior |
 | **Ekološka naknada** | Debt notice (*Obaveštenje o stanju duga*) for the environmental fee — *Naknada za zaštitu i unapređivanje životne sredine* | City tax administration (*Sekretarijat za javne prihode*) |
 
 Each tab has its own parser, because the two documents have completely different
@@ -177,7 +177,7 @@ Extracted PDF text arrives as one long line per page (pdf.js joins text items
 with spaces), so the regexes below anchor on explicit keywords rather than line
 ends. All extracted text is de-spaced and transliterated to ASCII Latin on output.
 
-### Prekršajni nalog (traffic fine)
+### Prekršajni nalog (speeding fine)
 
 Tolerant regexes handling both **Cyrillic and Latin** Serbian text:
 
