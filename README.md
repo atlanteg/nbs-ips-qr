@@ -112,7 +112,7 @@ The tags, in order:
 | `V`  | Version                        | Always `01`                                                  |
 | `C`  | Character set                  | `1` = UTF-8                                                  |
 | `R`  | Recipient account              | 18 digits (see normalization)                                |
-| `N`  | Recipient name + seat          | Name / seat, one per line (LF)                               |
+| `N`  | Recipient                      | Name / address / city, one per line (LF)                     |
 | `I`  | Amount                         | `RSD` + amount with **comma** decimal, 2 places — `RSD5000,00` |
 | `P`  | Payer (optional)               | Name / address / city, one per line (LF)                    |
 | `SF` | Payment code (*šifra*)         | e.g. `253` for fines                                         |
@@ -135,32 +135,38 @@ The tags, in order:
 `PREKRSAJNI NALOG <12–15 digits>` (32 characters), not the longer
 `UPLATA PO PREKRŠAJNOM NALOGU BROJ …` from the original document.
 
-### Recipient name and seat
+### Recipient name, address and seat
 
-`N` is written as two lines — the recipient's name and its seat:
+`N` is written as three lines, mirroring the payer block — name, address, city:
 
 ```
 N:BUDZET GRADA BEOGRADA
 BEOGRAD
+BEOGRAD
 ```
 
+For a budget there is no street address, so the city fills both the address and
+the city line, the way a paper *uplatnica* is filled in by hand.
+
 Strictly, NBS says a name that already contains its seat need not repeat it, and
-advises against non-mandatory data. Both shapes validate; this one is used
-because it matches how a paper *uplatnica* reads. The seat is taken from the
-letterhead in the **nominative** (`ГРАД БЕОГРАД …`, `ОПШТИНА ЗАГУБИЦА …`) rather
-than from the genitive form used in the authority's name, so no case conversion
-is needed and it is correct for any municipality. For speeding fines the
-recipient is the republic budget, whose seat is Beograd; for any other recipient
-the seat is left empty rather than guessed.
+advises against non-mandatory data. All shapes validate; this one is used because
+it matches the paper form. The seat is taken from the letterhead in the
+**nominative** (`ГРАД БЕОГРАД …`, `ОПШТИНА ЗАГУБИЦА …`) rather than from the
+genitive used in the authority's name, so no case conversion is needed and it is
+correct for any municipality. For speeding fines the recipient is the republic
+budget, seated in Beograd; for any other recipient both lines are left empty
+rather than guessed.
 
-The payer (`P`) is three lines — name, street, city.
+The payer (`P`) is likewise three lines — name, street, city.
 
-Both fields are shown in the form and can be edited before generating.
+All three recipient lines are separate editable fields, so the form still
+previews the payload exactly.
 
 ### Example payload
 
 ```
 K:PR|V:01|C:1|R:840000074332484318|N:BUDZET REPUBLIKE SRBIJE
+BEOGRAD
 BEOGRAD|I:RSD5000,00|P:PETAR PETROVIC
 KNEZA MILOSA 12
 BEOGRAD|SF:253|S:PREKRSAJNI NALOG 123456789012|RO:97123456789012345

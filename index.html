@@ -80,6 +80,9 @@
   <label data-i18n="lblRecipient"></label>
   <input type="text" id="recipientName" placeholder="BUDZET REPUBLIKE SRBIJE">
 
+  <label data-i18n="lblRecipientAddr"></label>
+  <input type="text" id="recipientAddress" placeholder="BEOGRAD">
+
   <label data-i18n="lblRecipientCity"></label>
   <input type="text" id="recipientCity" placeholder="BEOGRAD">
 
@@ -126,6 +129,7 @@
       lblPayerAddr: 'Adresa platioca:',
       optBank: 'nije obavezno · popunjava banka',
       lblRecipient: 'Naziv primaoca:',
+      lblRecipientAddr: 'Adresa primaoca:',
       lblRecipientCity: 'Sedište primaoca:',
       lblAccount: 'Račun primaoca (format 840-xxx-xx):',
       lblAmount: 'Iznos (RSD):',
@@ -156,6 +160,7 @@
       lblPayerAddr: 'Адрес плательщика:',
       optBank: 'не обязательно · заполнит банк',
       lblRecipient: 'Название получателя:',
+      lblRecipientAddr: 'Адрес получателя:',
       lblRecipientCity: 'Город получателя:',
       lblAccount: 'Счёт получателя (формат 840-xxx-xx):',
       lblAmount: 'Сумма (RSD):',
@@ -186,6 +191,7 @@
       lblPayerAddr: 'Payer address:',
       optBank: 'optional · filled by the bank',
       lblRecipient: 'Recipient name:',
+      lblRecipientAddr: 'Recipient address:',
       lblRecipientCity: 'Recipient seat:',
       lblAccount: 'Recipient account (format 840-xxx-xx):',
       lblAmount: 'Amount (RSD):',
@@ -275,6 +281,7 @@
     const payerName = toAsciiLatin(document.getElementById('payerName').value.trim());
     const payerAddr = toAsciiLatin(document.getElementById('payerAddress').value.trim());
     const recipient = toAsciiLatin(document.getElementById('recipientName').value.trim());
+    const recipAddr = toAsciiLatin(document.getElementById('recipientAddress').value.trim());
     const recipCity = toAsciiLatin(document.getElementById('recipientCity').value.trim());
     const accountRaw = document.getElementById('account').value.trim();
     const amountRaw = document.getElementById('amount').value;
@@ -309,7 +316,7 @@
       'V:01',
       'C:1',
       `R:${normalizedAcc}`,
-      `N:${capField([recipient, recipCity].filter(Boolean).join('\n'), MAX_N)}`,
+      `N:${capField([recipient, recipAddr, recipCity].filter(Boolean).join('\n'), MAX_N)}`,
       `I:${formattedAmt}`
     ];
 
@@ -454,8 +461,9 @@
         ? 'БУЏЕТ ГРАДА ' + recipMatch[1].replace(/\s+/g, ' ').trim()
         : 'БУЏЕТ ОПШТИНЕ ' + recipMatch[2].replace(/\s+/g, ' ').trim());
     }
-    document.getElementById('recipientCity').value =
-      seatMatch ? toAsciiLatin(seatMatch[1].replace(/\s+/g, ' ').trim()) : '';
+    const seat = seatMatch ? toAsciiLatin(seatMatch[1].replace(/\s+/g, ' ').trim()) : '';
+    document.getElementById('recipientAddress').value = seat;
+    document.getElementById('recipientCity').value = seat;
     // 253 = уплата јавних прихода, безготовински. (153 — тот же приход, но
     // наличными на шалтеру; оплата по QR из банковского приложения — всегда 253.)
     document.getElementById('code').value = '253';
@@ -487,7 +495,9 @@
       const rn = toAsciiLatin(recipMatch[1].replace(/\s+/g, ' ').trim());
       document.getElementById('recipientName').value = rn;
       // Седиште републичког буџета — Београд. Для прочих получателей не гадаем.
-      document.getElementById('recipientCity').value = /REPUBLIK/i.test(rn) ? 'BEOGRAD' : '';
+      const seat = /REPUBLIK/i.test(rn) ? 'BEOGRAD' : '';
+      document.getElementById('recipientAddress').value = seat;
+      document.getElementById('recipientCity').value = seat;
     }
     if (accMatch) document.getElementById('account').value = accMatch[0];
     if (refMatch) document.getElementById('reference').value = refMatch[1];
