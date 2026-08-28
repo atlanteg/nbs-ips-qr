@@ -395,14 +395,46 @@
   // Режим документа: 'prekrsaj' (штраф за скорость) или 'ekologija' (эконалог)
   var currentMode = 'prekrsaj';
 
-  function setMode(mode) {
+  // reparse=false — когда режим переключён самим автоопределением: текст уже
+  // разбирается вызывающим кодом, повторный разбор был бы рекурсией.
+  function setMode(mode, reparse) {
     currentMode = mode;
     document.getElementById('tabPrekrsaj').classList.toggle('active', mode === 'prekrsaj');
     document.getElementById('tabEkologija').classList.toggle('active', mode === 'ekologija');
     document.getElementById('dzTitle').textContent =
       t(mode === 'ekologija' ? 'dzEkologija' : 'dzPrekrsaj');
+    if (reparse === false) return;
     var pb = document.getElementById('pasteBox');
     if (pb.value.trim()) parseTextToFields(pb.value);
+  }
+
+  // Автоопределение типа документа. Считаем попадания характерных признаков
+  // каждого типа и берём тот, что набрал больше. При ничьей (в т.ч. 0:0)
+  // возвращаем null — тогда остаёмся на выбранной пользователем вкладке.
+  var DOC_SIGNS = {
+    ekologija: [
+      /обавештењ\w*\s+о\s+стању\s+дуга|obave[šs]tenj\w*\s+o\s+stanju\s+duga/i,
+      /накнад\w*\s+за\s+заштиту|naknad\w*\s+za\s+za[šs]titu/i,
+      /840-714562843-56/,
+      /пореск\w*\s+обвезник|poresk\w*\s+obveznik/i,
+      /позив\s+на\s+број\s+одобрења|poziv\s+na\s+broj\s+odobrenja/i
+    ],
+    prekrsaj: [
+      /прекршајн\w*\s+налог|prekr[šs]ajn\w*\s+nalog/i,
+      /плати\s+половину|plati\s+polovinu/i,
+      /840-743324843-18/,
+      /са\s+пребивалиштем|sa\s+prebivali[šs]tem/i,
+      /новчан\w*\s+казн|nov[čc]an\w*\s+kazn/i
+    ]
+  };
+
+  function detectDocType(text) {
+    var score = function (list) {
+      return list.reduce(function (n, re) { return n + (re.test(text) ? 1 : 0); }, 0);
+    };
+    var e = score(DOC_SIGNS.ekologija), p = score(DOC_SIGNS.prekrsaj);
+    if (e === p) return null;
+    return e > p ? 'ekologija' : 'prekrsaj';
   }
 
   // Парсер «Обавештење о стању дуга» — Накнада за заштиту и унапређивање животне средине
@@ -474,6 +506,8 @@
   // Автопарсинг из вставленного текста (заполняет все поля и пересчитывает)
   function parseTextToFields(text) {
     if (!text || !text.trim()) return;
+    var detected = detectDocType(text);
+    if (detected && detected !== currentMode) setMode(detected, false);
     if (currentMode === 'ekologija') return parseEkologija(text);
     const accMatch = text.match(/\b\d{3}-\d+-\d{2}\b/);
     const refMatch = text.match(/(?:позив(?:ом)? на број|poziv na broj)\s+([0-9]+)/i);

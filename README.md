@@ -23,6 +23,15 @@ The app parses two different official documents, chosen with the tabs at the top
 Each tab has its own parser, because the two documents have completely different
 layouts. Switching tabs re-parses whatever text is already in the paste box.
 
+**The tab is usually picked for you.** Dropping a PDF or pasting text runs a
+detector first: characteristic phrases of each document type are counted
+(*"obaveštenje o stanju duga"*, *"naknada za zaštitu"*, the `840-714562843-56`
+account for the fee; *"prekršajni nalog"*, *"plati polovinu"*, the
+`840-743324843-18` account for fines) and the tab with more hits is selected
+before parsing. On a tie — including text that matches neither — the current tab
+is kept, so an unrecognized document never silently switches away from your
+choice. You can always override by clicking a tab, which re-parses the text.
+
 ---
 
 ## Interface languages
