@@ -101,6 +101,7 @@
   <button onclick="generateNbsQr()" data-i18n="btnGenerate"></button>
 
   <div id="qrcode"></div>
+  <div id="roWarn" class="warn"></div>
   <div id="rawString"></div>
 </div>
 
@@ -129,6 +130,7 @@
       lblModel: 'Model (RO):',
       lblReference: 'Poziv na broj:',
       btnGenerate: 'Generiši QR Kôd',
+      roWarn: '⚠ Poziv na broj ne odgovara modelu 97 (pogrešna kontrolna cifra). Proverite ga u dokumentu — banka može odbiti plaćanje.',
       pdfNotPdf: 'Molimo izaberite PDF fajl.',
       pdfNoLib: 'PDF čitač nije učitan.',
       pdfReading: 'Čitam PDF…',
@@ -157,6 +159,7 @@
       lblModel: 'Модель (RO):',
       lblReference: 'Позив на број:',
       btnGenerate: 'Сгенерировать QR-код',
+      roWarn: '⚠ Позив на број не сходится с моделью 97 (неверная контрольная цифра). Сверьте с документом — банк может отклонить платёж.',
       pdfNotPdf: 'Пожалуйста, выберите PDF-файл.',
       pdfNoLib: 'Модуль чтения PDF не загружен.',
       pdfReading: 'Читаю PDF…',
@@ -185,6 +188,7 @@
       lblModel: 'Model (RO):',
       lblReference: 'Reference number:',
       btnGenerate: 'Generate QR code',
+      roWarn: '⚠ The reference number fails the model 97 check digit. Verify it against the document — the bank may reject the payment.',
       pdfNotPdf: 'Please choose a PDF file.',
       pdfNoLib: 'PDF reader not loaded.',
       pdfReading: 'Reading PDF…',
@@ -242,6 +246,17 @@
     // Заполняем основную часть нулями слева до 13 символов
     const paddedMain = mainPart.padStart(13, '0');
     return `${bank}${paddedMain}${control}`;
+  }
+
+  // Контрольная цифра позива на број по модели 97 (ISO 7064 MOD 97-10).
+  // Первые две цифры — контроль, остальное — сама ссылка.
+  function isValidModel97(ref) {
+    if (!/^\d{3,}$/.test(ref)) return false;
+    var ctrl = ref.slice(0, 2), base = ref.slice(2);
+    var rem = 0;
+    for (var i = 0; i < base.length; i++) rem = (rem * 10 + (base.charCodeAt(i) - 48)) % 97;
+    rem = (rem * 100) % 97;                 // база сдвигается на два разряда под контроль
+    return parseInt(ctrl, 10) === 98 - rem;
   }
 
   // Функция форматирования суммы (например, 5000 -> RSD5000,00)
@@ -306,6 +321,11 @@
     // Очистка предыдущего QR
     document.getElementById('qrcode').innerHTML = '';
     document.getElementById('rawString').innerText = ipsString;
+
+    // Модель 97 самопроверяема — если контроль не сходится, скорее всего разбор
+    // подхватил не тот номер. Предупреждаем, но QR всё равно показываем.
+    var roBad = model === '97' && reference && !isValidModel97(reference);
+    document.getElementById('roWarn').textContent = roBad ? t('roWarn') : '';
 
     // Генерация QR (SVG, UTF-8 корректно — сербская диакритика)
     qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];

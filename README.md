@@ -69,6 +69,19 @@ document text, and the QR payload is always ASCII Latin.
   (name / street / city). It is optional by spec — banking apps fill the payer
   from the scanning account automatically.
 - **No premature QR.** Nothing is rendered until there is real data.
+- **Model 97 check digit.** When the model is `97`, the *poziv na broj* carries a
+  ISO 7064 MOD 97-10 check digit in its first two digits. It is verified, and a
+  warning is shown if it fails — usually a sign the parser picked up the wrong
+  number. The QR is still rendered, so a document that genuinely disagrees with
+  the checksum can still be paid after a manual check.
+
+### Validated against the official NBS validator
+
+Both payload shapes were checked against the National Bank's own validator API
+(`POST https://nbs.rs/QRcode/api/qr/v1/validate`, raw payload as the request
+body) and both return `{"s":{"code":0,"desc":"OK."}}` with no errors. That
+endpoint is also what surfaced the model-97 requirement above — it rejects a
+reference whose check digit does not match with error `608`.
 
 ---
 
