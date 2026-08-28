@@ -49,10 +49,15 @@ document text, and the QR payload is always ASCII Latin.
   (on paste or when focus leaves the paste box).
 - **Half-amount detection.** If the notice offers a discount for early payment
   (*"PLATI POLOVINU"* — pay half), the amount is automatically halved.
-- **Cyrillic → Latin.** The QR payload is always emitted as plain ASCII Latin.
-  Serbian Cyrillic and diacritics are transliterated to the nearest Latin letters
-  (`Ć→C`, `Ž→Z`, `Š→S`, `Đ→DJ`, `Џ→DZ`, `Љ→LJ`, …). This keeps the QR small and
-  maximizes banking-app compatibility.
+- **Cyrillic → Latin, at parse time.** Every parsed field is transliterated to
+  plain ASCII Latin **as it is written into the form**, so what you read on screen
+  is exactly what goes into the QR — no surprises between the two.
+  Serbian Cyrillic and diacritics become the nearest Latin letters
+  (`Ć→C`, `Ž→Z`, `Š→S`, `Đ→DJ`, `Џ→DZ`, `Љ→LJ`, `Њ→NJ`, …), so
+  `ЂУРИЋ ЖЕЉКО` → `DJURIC ZELJKO` and `ЧАЧАНСКА` → `CACANSKA`.
+  This keeps the QR small and maximizes banking-app compatibility.
+  Transliteration is applied again on generation, so manually typed Cyrillic or
+  diacritics are converted too.
 - **Account normalization.** `840-743324843-18` → `840000074332484318`
   (bank code + 13-digit zero-padded core + 2-digit control = 18 digits).
 - **Purpose shortening.** Long fine descriptions are compressed to a compact form

@@ -72,13 +72,13 @@
   <div class="warn" data-i18n="warn"></div>
 
   <label class="lblrow"><span data-i18n="lblPayerName"></span><span class="opt" data-i18n="optBank"></span></label>
-  <input type="text" id="payerName" placeholder="PETAR PETROVIĆ">
+  <input type="text" id="payerName" placeholder="PETAR PETROVIC">
 
   <label class="lblrow"><span data-i18n="lblPayerAddr"></span><span class="opt" data-i18n="optBank"></span></label>
   <input type="text" id="payerAddress" placeholder="TRG SLOBODE 1, NOVI SAD">
 
   <label data-i18n="lblRecipient"></label>
-  <input type="text" id="recipientName" placeholder="BUDŽET REPUBLIKE SRBIJE">
+  <input type="text" id="recipientName" placeholder="BUDZET REPUBLIKE SRBIJE">
 
   <label data-i18n="lblAccount"></label>
   <input type="text" id="account" placeholder="840-743324843-18">
@@ -90,7 +90,7 @@
   <input type="text" id="code" value="253" placeholder="253">
 
   <label data-i18n="lblPurpose"></label>
-  <textarea id="purpose" rows="2" placeholder="UPLATA PO PREKRŠAJNOM NALOGU BROJ 123456789012"></textarea>
+  <textarea id="purpose" rows="2" placeholder="UPLATA PO PREKRSAJNOM NALOGU BROJ 123456789012"></textarea>
 
   <label data-i18n="lblModel"></label>
   <input type="text" id="model" placeholder="97">
@@ -338,7 +338,7 @@
   function shortenPurpose(p) {
     const num = (p.match(/\d{6,}/) || [])[0] || '';
     if (/(prekr[šs]aj|прекршај)/i.test(p) && /(nalog|налог)/i.test(p)) {
-      return ('УПЛАТ ПРЕКРШАЈ НАЛОГ ' + num).trim();
+      return ('UPLAT PREKRSAJ NALOG ' + num).trim();
     }
     return p;
   }
@@ -393,7 +393,7 @@
       let amt = parseFloat(raw.replace(/\.(?=\d{3}\b)/g, '').replace(',', '.'));
       if (!isNaN(amt)) document.getElementById('amount').value = amt;
     }
-    if (nameMatch) document.getElementById('payerName').value = fixSpacing(nameMatch[1].replace(/\s+/g, ' ').trim());
+    if (nameMatch) document.getElementById('payerName').value = toAsciiLatin(fixSpacing(nameMatch[1].replace(/\s+/g, ' ').trim()));
     if (addrMatch) {
       let a = fixSpacing(addrMatch[1].replace(/\s+/g, ' ').trim());
       // "Београд-Стари Град, Стари Град, БУЛЕВАР ДЕСПОТА СТЕФАНА 15" -> "БУЛЕВАР ДЕСПОТА СТЕФАНА 15, БЕОГРАД"
@@ -402,15 +402,15 @@
         const grad = parts[0].split('-')[0].trim();
         a = parts[parts.length - 1] + ', ' + grad;
       }
-      document.getElementById('payerAddress').value = a;
+      document.getElementById('payerAddress').value = toAsciiLatin(a);
     }
     // Прималац. Рачун 840-714562843-56 един для ВСЕЙ Сербии — деньги попадают в
     // бюджет той самоуправы, которая зашита в позив на број. Поэтому получателя
     // берём из шапки самого документа, а не хардкодим Београд.
     if (recipMatch) {
-      document.getElementById('recipientName').value = recipMatch[1]
+      document.getElementById('recipientName').value = toAsciiLatin(recipMatch[1]
         ? 'БУЏЕТ ГРАДА ' + recipMatch[1].replace(/\s+/g, ' ').trim()
-        : 'БУЏЕТ ОПШТИНЕ ' + recipMatch[2].replace(/\s+/g, ' ').trim();
+        : 'БУЏЕТ ОПШТИНЕ ' + recipMatch[2].replace(/\s+/g, ' ').trim());
     }
     // 253 = уплата јавних прихода, безготовински. (153 — тот же приход, но
     // наличными на шалтеру; оплата по QR из банковского приложения — всегда 253.)
@@ -439,16 +439,16 @@
     // адрес: блок между "у месту:" и "власнику" -> улица + место
     const addrBlock = text.match(/у\s+месту:?\s*([\s\S]+?)\s+власнику/i);
 
-    if (recipMatch) document.getElementById('recipientName').value = recipMatch[1].replace(/\s+/g, ' ').trim();
+    if (recipMatch) document.getElementById('recipientName').value = toAsciiLatin(recipMatch[1].replace(/\s+/g, ' ').trim());
     if (accMatch) document.getElementById('account').value = accMatch[0];
     if (refMatch) document.getElementById('reference').value = refMatch[1];
     if (modelMatch) document.getElementById('model').value = modelMatch[1];
-    if (purposeMatch) document.getElementById('purpose').value = shortenPurpose(purposeMatch[1].replace(/\s+/g, ' ').trim());
+    if (purposeMatch) document.getElementById('purpose').value = toAsciiLatin(shortenPurpose(purposeMatch[1].replace(/\s+/g, ' ').trim()));
     if (nameMatch) {
       let nm = fixSpacing(nameMatch[1].replace(/\s+/g, ' ').trim());
       const np = nm.split(' ');
       if (np.length === 2) nm = np[1] + ' ' + np[0]; // в позиве PREZIME IME -> в оплате IME PREZIME
-      document.getElementById('payerName').value = nm;
+      document.getElementById('payerName').value = toAsciiLatin(nm);
     }
     if (addrBlock) {
       const blk = fixSpacing(addrBlock[1].replace(/\s+/g, ' ').trim());
@@ -456,7 +456,7 @@
       let street = (blk.match(/,\s*(.+)$/) || [])[1] || '';
       street = street.replace(/\b0+(\d)/g, '$1'); // убрать ведущие нули в номере дома: 044 -> 44
       const address = (street ? street + ', ' : '') + mesto;
-      if (address.trim()) document.getElementById('payerAddress').value = address.trim();
+      if (address.trim()) document.getElementById('payerAddress').value = toAsciiLatin(address.trim());
     }
     // сумма + "плати половину" -> делим на 2
     if (amountMatch) {
