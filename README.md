@@ -135,14 +135,27 @@ The tags, in order:
 `PREKRSAJNI NALOG <12–15 digits>` (32 characters), not the longer
 `UPLATA PO PREKRŠAJNOM NALOGU BROJ …` from the original document.
 
-### Does the recipient need an address?
+### Recipient name and seat
 
-No. NBS states that if the recipient's name already contains its seat, the seat
-need not be given separately — and it recommends against including non-mandatory
-data, because it only makes the QR denser. `BUDZET REPUBLIKE SRBIJE` and
-`BUDZET GRADA BEOGRADA` both name their seat, so `N` carries the name alone.
-The payer (`P`) is different: there the address *is* the convention, so name,
-street and city are written on three lines.
+`N` is written as two lines — the recipient's name and its seat:
+
+```
+N:BUDZET GRADA BEOGRADA
+BEOGRAD
+```
+
+Strictly, NBS says a name that already contains its seat need not repeat it, and
+advises against non-mandatory data. Both shapes validate; this one is used
+because it matches how a paper *uplatnica* reads. The seat is taken from the
+letterhead in the **nominative** (`ГРАД БЕОГРАД …`, `ОПШТИНА ЗАГУБИЦА …`) rather
+than from the genitive form used in the authority's name, so no case conversion
+is needed and it is correct for any municipality. For speeding fines the
+recipient is the republic budget, whose seat is Beograd; for any other recipient
+the seat is left empty rather than guessed.
+
+The payer (`P`) is three lines — name, street, city.
+
+Both fields are shown in the form and can be edited before generating.
 
 ### Example payload
 
