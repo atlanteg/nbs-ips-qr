@@ -279,7 +279,7 @@
       if (ci > -1) { payerLines.push(payerAddr.slice(0, ci).trim()); payerLines.push(payerAddr.slice(ci + 1).trim()); }
       else payerLines.push(payerAddr);
     }
-    const payerFull = payerLines.filter(Boolean).join('\n');
+    const payerFull = capField(payerLines.filter(Boolean).join('\n'), MAX_P);
 
     // Формирование строки строго по стандарту NBS IPS
     let ipsParts = [
@@ -287,13 +287,13 @@
       'V:01',
       'C:1',
       `R:${normalizedAcc}`,
-      `N:${recipient}`,
+      `N:${capField(recipient, MAX_N)}`,
       `I:${formattedAmt}`
     ];
 
     if (payerFull) ipsParts.push(`P:${payerFull}`);
     if (code) ipsParts.push(`SF:${code}`);
-    if (purpose) ipsParts.push(`S:${purpose}`);
+    if (purpose) ipsParts.push(`S:${capField(purpose, MAX_S)}`);
 
     if (model && reference) {
       ipsParts.push(`RO:${model}${reference}`);
@@ -334,11 +334,19 @@
     return out;
   }
 
-  // Сжатие назначения до короткой формы (короче строка → меньше данных в QR)
+  // Лимиты длины полей по спецификации NBS IPS QR.
+  const MAX_S = 35;  // svrha plaćanja — ровно 35 знаков, в одну строку
+  const MAX_N = 70;  // naziv primaoca — до 70 знаков (до 3 строк)
+  const MAX_P = 70;  // platilac — то же
+
+  function capField(v, max) { return v.length > max ? v.slice(0, max).trim() : v; }
+
+  // Сжатие назначения до короткой формы: и читаемее, и укладывается в 35 знаков.
+  // "UPLAT PREKRSAJ NALOG <15 цифр>" давало 36 — на один знак больше лимита.
   function shortenPurpose(p) {
     const num = (p.match(/\d{6,}/) || [])[0] || '';
     if (/(prekr[šs]aj|прекршај)/i.test(p) && /(nalog|налог)/i.test(p)) {
-      return ('UPLAT PREKRSAJ NALOG ' + num).trim();
+      return ('PREKRSAJNI NALOG ' + num).trim();   // 17 + 15 = 32 знака
     }
     return p;
   }

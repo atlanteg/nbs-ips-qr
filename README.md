@@ -62,7 +62,7 @@ document text, and the QR payload is always ASCII Latin.
   (bank code + 13-digit zero-padded core + 2-digit control = 18 digits).
 - **Purpose shortening.** Long fine descriptions are compressed to a compact form
   to reduce QR density (`UPLATA PO PREKRŠAJNOM NALOGU BROJ: 123456789012`
-  → `UPLAT PREKRSAJ NALOG 123456789012`).
+  → `PREKRSAJNI NALOG 123456789012`).
 - **PDF de-spacing.** Fixes letter-spacing artifacts from copied PDFs
   (`BEOGR AD` → `BEOGRAD`, `PETROVIC A` → `PETROVICA`).
 - **Optional payer.** The payer field (`P`) is written as three lines
@@ -103,18 +103,40 @@ The tags, in order:
 | `I`  | Amount                         | `RSD` + amount with **comma** decimal, 2 places — `RSD5000,00` |
 | `P`  | Payer (optional)               | Name / address / city, one per line (LF)                    |
 | `SF` | Payment code (*šifra*)         | e.g. `253` for fines                                         |
-| `S`  | Purpose (*svrha plaćanja*)     | Free text                                                    |
+| `S`  | Purpose (*svrha plaćanja*)     | Free text, **max 35 chars**                                  |
 | `RO` | Reference                      | Model + *poziv na broj*, e.g. `97` + `12345…`               |
 
 **There are no separate tags for address and city** — they live inside the single
 `P` (or `N`) field, ideally on separate lines.
+
+### Field length limits
+
+| Tag | Limit | Enforced |
+|-----|-------|----------|
+| `S` | **35 characters**, single line — spaces count | truncated on generation |
+| `N` | 70 characters, up to 3 lines | truncated on generation |
+| `P` | 70 characters, up to 3 lines | truncated on generation |
+| `R` | exactly 18 digits | zero-padded by normalization |
+
+`S` is the tight one. The fine purpose is therefore shortened to
+`PREKRSAJNI NALOG <12–15 digits>` (32 characters), not the longer
+`UPLATA PO PREKRŠAJNOM NALOGU BROJ …` from the original document.
+
+### Does the recipient need an address?
+
+No. NBS states that if the recipient's name already contains its seat, the seat
+need not be given separately — and it recommends against including non-mandatory
+data, because it only makes the QR denser. `BUDZET REPUBLIKE SRBIJE` and
+`BUDZET GRADA BEOGRADA` both name their seat, so `N` carries the name alone.
+The payer (`P`) is different: there the address *is* the convention, so name,
+street and city are written on three lines.
 
 ### Example payload
 
 ```
 K:PR|V:01|C:1|R:840000074332484318|N:BUDZET REPUBLIKE SRBIJE|I:RSD5000,00|P:PETAR PETROVIC
 KNEZA MILOSA 12
-BEOGRAD|SF:253|S:UPLAT PREKRSAJ NALOG 123456789012|RO:97123456789012345
+BEOGRAD|SF:253|S:PREKRSAJNI NALOG 123456789012|RO:97123456789012345
 ```
 
 ### Account normalization
